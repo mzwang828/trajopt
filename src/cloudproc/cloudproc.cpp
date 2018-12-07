@@ -17,7 +17,7 @@
 #include "pcl/impl/instantiate.hpp"
 #include <boost/filesystem.hpp>
 #include <pcl/features/integral_image_normal.h>
-#if PCL_VERSION_COMPARE(>=, 1, 7, 0)
+#if PCL_MINOR_VERSION > 6
 #include <pcl/filters/median_filter.h>
 #include <pcl/filters/fast_bilateral.h>
 #endif
@@ -35,48 +35,7 @@ int cloudSize(const CloudT& cloud) {
   return cloud.width * cloud.height;
 }
 
-template <class CloudT>
-void setWidthToSize(const CloudT& cloud) {
-  cloud->width = cloud->points.size();
-  cloud->height = 1;
-}
-
-template <class T>
-typename pcl::PointCloud<T>::Ptr readPCD(const std::string& pcdfile) {
-#if PCL_VERSION_COMPARE(>=, 1, 7, 0)
-  pcl::PCLPointCloud2 cloud_blob;
-#else
-  sensor_msgs::PointCloud2 cloud_blob;
-#endif
-  typename pcl::PointCloud<T>::Ptr cloud (new typename pcl::PointCloud<T>);
-  if (pcl::io::loadPCDFile (pcdfile, cloud_blob) != 0) FILE_OPEN_ERROR(pcdfile);
-#if PCL_VERSION_COMPARE(>=, 1, 7, 0)
-  pcl::fromPCLPointCloud2 (cloud_blob, *cloud);
-#else
-  pcl::fromROSMsg (cloud_blob, *cloud);
-#endif
-  return cloud;
-}
-
-template<class T>
-void saveCloud(const typename pcl::PointCloud<T>& cloud, const std::string& fname) {
-  std::string ext = fs::extension(fname);
-  if (ext == ".pcd")   pcl::io::savePCDFileBinary(fname, cloud);
-  else if (ext == ".ply") PRINT_AND_THROW("not implemented");//pcl::io::savePLYFile(fname, cloud, true);
-  else throw std::runtime_error( (boost::format("%s has unrecognized extension")%fname).str() );
-}
-
 ///////////////////////////
-
-template<class T>
-typename pcl::PointCloud<T>::Ptr downsampleCloud(typename pcl::PointCloud<T>::ConstPtr in, float vsize) {
-  typename pcl::PointCloud<T>::Ptr out (new typename pcl::PointCloud<T>);
-  pcl::VoxelGrid< T > sor;
-  sor.setInputCloud (in);
-  sor.setLeafSize (vsize, vsize, vsize);
-  sor.filter (*out);
-  return out;
-}
 
 vector<int> getNearestNeighborIndices(PointCloud<PointXYZ>::Ptr src, PointCloud<PointXYZ>::Ptr targ) {
   pcl::KdTreeFLANN<pcl::PointXYZ>::Ptr tree (new pcl::KdTreeFLANN<pcl::PointXYZ>(true));
@@ -202,11 +161,7 @@ pcl::PolygonMesh::Ptr meshOFM(PointCloud<pcl::PointXYZ>::ConstPtr cloud, int edg
   ofm.setTriangulationType (pcl::OrganizedFastMesh<PointXYZ>::TRIANGLE_ADAPTIVE_CUT);
   pcl::PolygonMeshPtr mesh(new pcl::PolygonMesh());
   ofm.reconstruct(mesh->polygons);
-#if PCL_VERSION_COMPARE(>=, 1, 7, 0)
   pcl::toPCLPointCloud2(*cloud, mesh->cloud);
-#else
-  pcl::toROSMsg(*cloud, mesh->cloud);
-#endif
   mesh->header = cloud->header;
   return mesh;
 }
@@ -229,7 +184,7 @@ void saveTrimeshCustomFmt(pcl::PolygonMesh::ConstPtr mesh, const std::string& fn
   ofstream o(fname.c_str());
   if (o.bad()) FILE_OPEN_ERROR(fname);
   pcl::PointCloud<PointXYZ>::Ptr cloud(new pcl::PointCloud<PointXYZ>());
-  pcl::fromROSMsg(mesh->cloud, *cloud);
+  pcl::fromPCLPointCloud2(mesh->cloud, *cloud);
   o << cloud->size() << endl;
   BOOST_FOREACH(const PointXYZ& pt, cloud->points) {
     o << pt.x << " " << pt.y << " " << pt.z;
@@ -254,86 +209,8 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr toXYZ(typename pcl::PointCloud<T>::ConstPtr 
   return out;
 }
 
-template <class T>
-VectorXb boxMask(typename pcl::PointCloud<T>::ConstPtr in, float xmin, float ymin, float zmin, float xmax, float ymax, float zmax) {
-  int i=0;
-  VectorXb out(in->size());
-  BOOST_FOREACH(const T& pt, in->points) {
-    out[i] = (pt.x >= xmin && pt.x <= xmax && pt.y >= ymin && pt.y <= ymax && pt.z >= zmin && pt.z <= zmax);
-    ++i;
-  }
-  return out;
-}
-
-template <class T>
-typename pcl::PointCloud<T>::Ptr maskFilterDisorganized(typename pcl::PointCloud<T>::ConstPtr in, const VectorXb& mask) {
-  int n = mask.sum();
-  typename pcl::PointCloud<T>::Ptr out(new typename pcl::PointCloud<T>());
-  out->points.reserve(n);
-  for (int i=0; i < mask.size(); ++i) {
-    if (mask[i]) out->points.push_back(in->points[i]);
-  }
-  setWidthToSize(out);
-  return out;
-}
-
-template <class T>
-typename pcl::PointCloud<T>::Ptr maskFilterOrganized(typename pcl::PointCloud<T>::ConstPtr in, const VectorXb& mask) {
-  typename pcl::PointCloud<T>::Ptr out(new typename pcl::PointCloud<T>(*in));
-  for (int i=0; i < mask.size(); ++i) {
-    if (!mask[i]) {
-      T& pt = out->points[i];
-      pt.x = NAN;
-      pt.y = NAN;
-      pt.z = NAN;
-    }
-  }
-  return out;
-}
-
-template <class T>
-typename pcl::PointCloud<T>::Ptr maskFilter(typename pcl::PointCloud<T>::ConstPtr in, const VectorXb& mask, bool keep_organized) {
-  if (keep_organized) return maskFilterOrganized<T>(in, mask);
-  else return maskFilterDisorganized<T>(in, mask);
-}
-
-template <class T>
-typename pcl::PointCloud<T>::Ptr medianFilter(typename pcl::PointCloud<T>::ConstPtr in, int windowSize, float maxAllowedMovement) {
-#if PCL_VERSION_COMPARE(>=, 1, 7, 0)
-  pcl::MedianFilter<T> mf;
-  mf.setWindowSize(windowSize);
-  mf.setMaxAllowedMovement(maxAllowedMovement);
-  typename PointCloud<T>::Ptr out(new PointCloud<T>());
-  mf.setInputCloud(in);
-  mf.filter(*out);
-  return out;
-#else 
-  PRINT_AND_THROW("not implemented");
-#endif
-}
-
-template <class T>
-typename pcl::PointCloud<T>::Ptr fastBilateralFilter(typename pcl::PointCloud<T>::ConstPtr in, float sigmaS, float sigmaR) {
-#if PCL_VERSION_COMPARE(>=, 1, 7, 0)
-  pcl::FastBilateralFilter<T> mf;
-  mf.setSigmaS(sigmaS);
-  mf.setSigmaR(sigmaR);
-  typename PointCloud<T>::Ptr out(new PointCloud<T>());
-  mf.setInputCloud(in);
-  mf.applyFilter(*out);
-  return out;
-#else
-  PRINT_AND_THROW("not implemented");
-#endif
-}
-
-#if PCL_VERSION_COMPARE(>=, 1, 7, 0)
 void removenans(pcl::PCLPointCloud2& cloud, float fillval=0);
 void removenans(pcl::PCLPointCloud2& cloud, float fillval) {
-#else
-void removenans(sensor_msgs::PointCloud2& cloud, float fillval=0);
-void removenans(sensor_msgs::PointCloud2& cloud, float fillval) {
-#endif
   int npts = cloud.width * cloud.height;
   for (int i=0; i < npts; ++i) {
     float* ptdata = (float*)(cloud.data.data() + cloud.point_step * i);
@@ -380,7 +257,5 @@ pcl::PolygonMesh::Ptr loadMesh(const std::string& fname) {
   else PRINT_AND_THROW(boost::format("filename %s had unrecognized extension")%fname);
   return out;
 }
-
-#include "autogen_instantiations.cpp"
 }
 

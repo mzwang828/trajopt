@@ -3,6 +3,7 @@ include_directories(
   ${CMAKE_SOURCE_DIR}/src
 )
 
+include_directories ("/usr/include/ni") 
 
 add_definitions(-DEIGEN_DEFAULT_TO_ROW_MAJOR)
 

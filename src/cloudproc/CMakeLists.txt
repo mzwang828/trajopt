@@ -1,8 +1,12 @@
 
 
-find_package(PCL 1.7 REQUIRED)
+find_package(PCL 1.8 REQUIRED)
+find_package(Eigen3 REQUIRED)
+find_package(VTK REQUIRED)
 
-include_directories(SYSTEM ${PCL_INCLUDE_DIRS})
+set(PCL_INCLUDE_DIRS /usr/local/include/pcl-1.8)
+
+include_directories(SYSTEM ${PCL_INCLUDE_DIRS}  ${EIGEN3_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
@@ -28,7 +32,7 @@ add_library(cloudproc
   cloudproc.cpp  
   sphere_sampling.cpp
   mesh_simplification
-  vtkQuadricDecimation2.cxx
+  #vtkQuadricDecimation2.cxx
   cloudgrabber.cpp
   hacd_unity.cpp
   hacd_interface.cpp

@@ -5,7 +5,7 @@
 #include <vtkPoints.h>
 #include <vtkPolyLine.h>
 #include <vtkPolyData.h>
-#include "cloudproc/vtkQuadricDecimation2.h"
+#include <vtkQuadricDecimation.h>
 #include <pcl/PolygonMesh.h>
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
@@ -86,10 +86,10 @@ pcl::PolygonMesh::Ptr quadricSimplifyVTK(pcl::PolygonMesh& in, float meshDecimat
       vtkSmartPointer<vtkPolyData>::New();
   toVTK(in, *inputPolyData);
 
-  vtkSmartPointer<vtkQuadricDecimation2> decimate = vtkSmartPointer<
-      vtkQuadricDecimation2>::New();
+  vtkSmartPointer<vtkQuadricDecimation> decimate = vtkSmartPointer<
+      vtkQuadricDecimation>::New();
   decimate->SetTargetReduction(1-meshDecimationFrac);
-  decimate->SetInput(inputPolyData.GetPointer());
+  decimate->SetInputData(inputPolyData.GetPointer());
   decimate->Update();
 
   vtkSmartPointer<vtkPolyData> decimated = vtkSmartPointer<vtkPolyData>::New();
