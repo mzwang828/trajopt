@@ -1,1 +1,7 @@
 Documentation: http://rll.berkeley.edu/trajopt
+
+Work with PCL 1.8, VTK 8.0, OSG 3.4 on Ubuntu 16.04
+
+mkdir build && cd build
+cmake .. -DOSG_DIR=/usr/local/lib64/
+make -j
