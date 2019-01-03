@@ -22,4 +22,5 @@ Work with PCL 1.8, VTK 8.0, OSG 3.4 on Ubuntu 16.04
 mkdir build && cd build <br>
 cmake .. -DOSG_DIR=/usr/local/lib64/ <br>
 make -j
-  - add /path/to/trajopt:/path/to/build_trajopt/lib:/usr/local/lib:/usr/local/lib64 to PYTHONPATH
+  - add /path/to/trajopt:/path/to/build_trajopt/lib to PYTHONPATH
+  - add /usr/local/lib:/usr/local/lib64 to LD_LIBRARY_PATH
