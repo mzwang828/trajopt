@@ -2,11 +2,11 @@ Documentation: http://rll.berkeley.edu/trajopt
 
 Work with PCL 1.8, VTK 8.0, OSG 3.4 on Ubuntu 16.04
 
-* install openrave
+- install openrave
     https://scaron.info/teaching/installing-openrave-on-ubuntu-16.04.html
     http://fsuarez6.github.io/blog/workstation-setup-xenial/
 
-* install Gurobi
+- install Gurobi
 
     Download current version gurobi*** into your ~/Downloads folder.
     cd ~/Downloads
